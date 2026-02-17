@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="icon.png" alt="BlitzWolf Vacuum" width="128">
+  <img src="https://raw.githubusercontent.com/Sergioloid/blitzwolf-clean-ha/main/icon.png" alt="BlitzWolf Vacuum" width="128">
 </p>
 
 <h1 align="center">BlitzWolf Vacuum - Home Assistant Integration</h1>
