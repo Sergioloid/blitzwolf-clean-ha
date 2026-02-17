@@ -50,6 +50,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Debounce window: collect rapid MQTT messages and notify once
+_DEBOUNCE_SECONDS = 0.15
+# Polling interval for non-streaming data
+_POLL_INTERVAL = 30
+
 
 class VacuumData:
     """Holds the current state of the vacuum."""
@@ -94,6 +99,7 @@ class BlitzwolfMqttCoordinator:
         self._topic_pub = TOPIC_PUB.format(device_id)
         self._topic_sub = TOPIC_SUB.format(device_id)
         self._refresh_task: asyncio.Task | None = None
+        self._debounce_handle: asyncio.TimerHandle | None = None
 
     @property
     def connected(self) -> bool:
@@ -109,13 +115,23 @@ class BlitzwolfMqttCoordinator:
 
         return remove
 
+    @callback
     def _notify_listeners(self) -> None:
-        """Notify all listeners of a state update."""
+        """Notify all listeners of a state update (runs on HA event loop)."""
+        self._debounce_handle = None
         for listener in self._listeners:
             try:
                 listener()
             except Exception:
                 _LOGGER.exception("Error notifying listener")
+
+    def _schedule_notify(self) -> None:
+        """Debounced notification: coalesce rapid MQTT messages into one update."""
+        if self._debounce_handle is not None:
+            self._debounce_handle.cancel()
+        self._debounce_handle = self.hass.loop.call_later(
+            _DEBOUNCE_SECONDS, self._notify_listeners
+        )
 
     async def async_connect(self) -> None:
         """Connect to MQTT broker."""
@@ -137,6 +153,7 @@ class BlitzwolfMqttCoordinator:
         self._client.on_disconnect = self._on_disconnect
 
         _LOGGER.debug("Connecting to MQTT %s:%s", MQTT_HOST, MQTT_PORT)
+        # connect() is blocking (TCP handshake + TLS), needs executor
         await self.hass.async_add_executor_job(
             self._client.connect, MQTT_HOST, MQTT_PORT, 60
         )
@@ -192,8 +209,9 @@ class BlitzwolfMqttCoordinator:
         """
         if not self._connected:
             return
-        await self.hass.async_add_executor_job(self._subscribe_realtime)
-        await self.hass.async_add_executor_job(self._query_initial_state)
+        # publish() with loop_start() is non-blocking, no executor needed
+        self._subscribe_realtime()
+        self._query_initial_state()
 
     async def async_start_refresh_loop(self) -> None:
         """Start a periodic loop that re-polls non-streaming data."""
@@ -205,9 +223,9 @@ class BlitzwolfMqttCoordinator:
         """Periodically poll data that doesn't arrive via real-time push."""
         try:
             while True:
-                await asyncio.sleep(60)
+                await asyncio.sleep(_POLL_INTERVAL)
                 if self._connected:
-                    await self.hass.async_add_executor_job(self._query_initial_state)
+                    self._query_initial_state()
         except asyncio.CancelledError:
             pass
 
@@ -265,11 +283,15 @@ class BlitzwolfMqttCoordinator:
         else:
             _LOGGER.debug("MQTT recv f=%s p=%s", func, str(param)[:200])
 
-        # Schedule listener notification on the HA event loop
-        self.hass.loop.call_soon_threadsafe(self._notify_listeners)
+        # Debounced: schedule notification on HA event loop
+        self.hass.loop.call_soon_threadsafe(self._schedule_notify)
 
     def _send_command(self, function_code: int, param: Any = None) -> None:
-        """Send a command to the robot via MQTT."""
+        """Send a command to the robot via MQTT.
+
+        paho-mqtt publish() with loop_start() is non-blocking and thread-safe,
+        so this can be called from any thread including the asyncio event loop.
+        """
         if not self._client or not self._connected:
             _LOGGER.warning("Cannot send command, MQTT not connected")
             return
@@ -279,41 +301,38 @@ class BlitzwolfMqttCoordinator:
         self._client.publish(self._topic_pub, json.dumps(msg))
         _LOGGER.debug("MQTT send f=%s p=%s", function_code, param)
 
-    async def async_send_command(self, function_code: int, param: Any = None) -> None:
-        """Send a command (async wrapper)."""
-        await self.hass.async_add_executor_job(
-            self._send_command, function_code, param
-        )
-
     async def async_start(self) -> None:
         """Start cleaning."""
-        await self.async_send_command(CMD_ACTION, 1)
+        self._send_command(CMD_ACTION, 1)
 
     async def async_pause(self) -> None:
         """Pause cleaning."""
-        await self.async_send_command(CMD_ACTION, 2)
+        self._send_command(CMD_ACTION, 2)
 
     async def async_stop(self) -> None:
         """Stop cleaning."""
-        await self.async_send_command(CMD_STOP)
+        self._send_command(CMD_STOP)
 
     async def async_return_to_base(self) -> None:
         """Return to charging dock."""
-        await self.async_send_command(CMD_DOCK)
+        self._send_command(CMD_DOCK)
 
     async def async_set_fan_speed(self, speed_int: int) -> None:
         """Set sweep mode (0=normal, 1=silence, 2=high, 3=full)."""
-        await self.async_send_command(CMD_SET_SWEEP_MODE, speed_int)
+        self._send_command(CMD_SET_SWEEP_MODE, speed_int)
 
     async def async_spot_clean(self, x: float, y: float) -> None:
         """Start spot cleaning at coordinates."""
-        await self.async_send_command(CMD_SPOT_CLEAN, {"x": x, "y": y})
+        self._send_command(CMD_SPOT_CLEAN, {"x": x, "y": y})
 
     async def async_disconnect(self) -> None:
         """Disconnect from MQTT."""
         if self._refresh_task is not None:
             self._refresh_task.cancel()
             self._refresh_task = None
+        if self._debounce_handle is not None:
+            self._debounce_handle.cancel()
+            self._debounce_handle = None
         if self._client:
             self._send_command(CMD_STOP_UPDATE)
             self._client.loop_stop()
