@@ -1,8 +1,14 @@
-# BlitzWolf Vacuum - Home Assistant Integration
+<p align="center">
+  <img src="icon.png" alt="BlitzWolf Vacuum" width="128">
+</p>
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![GitHub Release](https://img.shields.io/github/v/release/Sergioloid/blitzwolf-clean-ha)](https://github.com/Sergioloid/blitzwolf-clean-ha/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<h1 align="center">BlitzWolf Vacuum - Home Assistant Integration</h1>
+
+<p align="center">
+  <a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS"></a>
+  <a href="https://github.com/Sergioloid/blitzwolf-clean-ha/releases"><img src="https://img.shields.io/github/v/release/Sergioloid/blitzwolf-clean-ha" alt="Release"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License"></a>
+</p>
 
 Custom Home Assistant integration for **BlitzWolf BW-VC1** robot vacuum cleaners (and compatible Slamtec/Lambot-based devices).
 
