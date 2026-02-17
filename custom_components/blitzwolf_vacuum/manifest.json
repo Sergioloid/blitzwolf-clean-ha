@@ -1,0 +1,12 @@
+{
+  "domain": "blitzwolf_vacuum",
+  "name": "BlitzWolf Robot Vacuum",
+  "codeowners": ["@sergioyurisorgente"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/sergioyurisorgente/blitzwolf-vacuum-ha",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/sergioyurisorgente/blitzwolf-vacuum-ha/issues",
+  "requirements": ["paho-mqtt>=2.0.0"],
+  "version": "1.0.0"
+}
