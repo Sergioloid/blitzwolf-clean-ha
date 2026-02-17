@@ -1,8 +1,20 @@
 # BlitzWolf Vacuum - Home Assistant Integration
 
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/v/release/Sergioloid/blitzwolf-clean-ha)](https://github.com/Sergioloid/blitzwolf-clean-ha/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Custom Home Assistant integration for **BlitzWolf BW-VC1** robot vacuum cleaners (and compatible Slamtec/Lambot-based devices).
 
 Reverse-engineered from the official BlitzWolf Clean Android app — no cloud relay, no third-party dependencies. Communicates directly with the Slamtec IoT platform via OAuth2 + MQTT.
+
+---
+
+## Quick Install
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Sergioloid&repository=blitzwolf-clean-ha&category=integration)
+
+Or manually add as a HACS custom repository (see below).
 
 ---
 
