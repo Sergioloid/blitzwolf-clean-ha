@@ -18,5 +18,59 @@
     "abort": {
       "already_configured": "This device is already configured."
     }
+  },
+  "entity": {
+    "sensor": {
+      "battery": {
+        "name": "Battery"
+      },
+      "board_temperature": {
+        "name": "Board temperature"
+      },
+      "cleaning_time": {
+        "name": "Cleaning time"
+      },
+      "current_action": {
+        "name": "Current action"
+      },
+      "fan_speed": {
+        "name": "Fan speed"
+      },
+      "device_mode": {
+        "name": "Device mode"
+      },
+      "position_x": {
+        "name": "Position X"
+      },
+      "position_y": {
+        "name": "Position Y"
+      },
+      "yaw": {
+        "name": "Orientation"
+      },
+      "dock_position_x": {
+        "name": "Dock position X"
+      },
+      "dock_position_y": {
+        "name": "Dock position Y"
+      },
+      "wifi_ssid": {
+        "name": "WiFi SSID"
+      },
+      "wifi_ip": {
+        "name": "WiFi IP address"
+      }
+    },
+    "binary_sensor": {
+      "charging": {
+        "name": "Charging"
+      },
+      "dc_connected": {
+        "name": "DC connected"
+      },
+      "mqtt_connected": {
+        "name": "MQTT connected"
+      }
+    }
   }
 }

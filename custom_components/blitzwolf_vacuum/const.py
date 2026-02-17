@@ -2,7 +2,7 @@
 
 DOMAIN = "blitzwolf_vacuum"
 MANUFACTURER = "BlitzWolf"
-PLATFORMS = ["vacuum"]
+PLATFORMS = ["vacuum", "sensor", "binary_sensor"]
 
 # Slamtec Cloud
 CLOUD_URL = "https://cloud.slamtec.com"
