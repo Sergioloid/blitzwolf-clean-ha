@@ -15,6 +15,10 @@ from .api import SlamtecApi
 from .const import (
     CMD_ACTION,
     CMD_DOCK,
+    CMD_GET_BATTERY,
+    CMD_GET_NETWORK,
+    CMD_GET_STATUS,
+    CMD_GET_SWEEP_MODE,
     CMD_SET_SWEEP_MODE,
     CMD_SPOT_CLEAN,
     CMD_START_UPDATE,
@@ -89,6 +93,7 @@ class BlitzwolfMqttCoordinator:
         self._listeners: list[Callable[[], None]] = []
         self._topic_pub = TOPIC_PUB.format(device_id)
         self._topic_sub = TOPIC_SUB.format(device_id)
+        self._refresh_task: asyncio.Task | None = None
 
     @property
     def connected(self) -> bool:
@@ -149,24 +154,62 @@ class BlitzwolfMqttCoordinator:
             self._connected = True
             client.subscribe(self._topic_sub)
             _LOGGER.info("MQTT connected, subscribed to %s", self._topic_sub)
-            # Request real-time status updates
-            self._send_command(CMD_START_UPDATE, {
-                "pose": True,
-                "currentAction": True,
-                "batteryPercentage": True,
-                "batteryCharging": True,
-                "dcConnected": True,
-                "boardTemperature": True,
-                "exploreMap": False,
-                "sweepMap": False,
-                "virtualWall": False,
-                "sweepTime": True,
-                "sweepArea": True,
-                "dockPose": True,
-                "sweepingRegion": False,
-            })
+            # Request full data update (works both on first connect and reconnect)
+            self._subscribe_realtime()
+            self._query_initial_state()
         else:
             _LOGGER.error("MQTT connection failed: rc=%s", rc)
+
+    def _subscribe_realtime(self) -> None:
+        """Subscribe to real-time push updates from the robot."""
+        self._send_command(CMD_START_UPDATE, {
+            "pose": True,
+            "currentAction": True,
+            "batteryPercentage": True,
+            "batteryCharging": True,
+            "dcConnected": True,
+            "boardTemperature": True,
+            "exploreMap": False,
+            "sweepMap": False,
+            "virtualWall": False,
+            "sweepTime": True,
+            "sweepArea": True,
+            "dockPose": True,
+            "sweepingRegion": False,
+        })
+
+    def _query_initial_state(self) -> None:
+        """Send one-shot queries for data not included in the real-time stream."""
+        self._send_command(CMD_GET_BATTERY)
+        self._send_command(CMD_GET_STATUS)
+        self._send_command(CMD_GET_SWEEP_MODE)
+        self._send_command(CMD_GET_NETWORK)
+
+    async def async_request_full_update(self) -> None:
+        """Re-subscribe to real-time data and poll non-streaming values.
+
+        Call this AFTER entities have been set up so listeners receive the data.
+        """
+        if not self._connected:
+            return
+        await self.hass.async_add_executor_job(self._subscribe_realtime)
+        await self.hass.async_add_executor_job(self._query_initial_state)
+
+    async def async_start_refresh_loop(self) -> None:
+        """Start a periodic loop that re-polls non-streaming data."""
+        if self._refresh_task is not None:
+            return
+        self._refresh_task = self.hass.async_create_task(self._refresh_loop())
+
+    async def _refresh_loop(self) -> None:
+        """Periodically poll data that doesn't arrive via real-time push."""
+        try:
+            while True:
+                await asyncio.sleep(60)
+                if self._connected:
+                    await self.hass.async_add_executor_job(self._query_initial_state)
+        except asyncio.CancelledError:
+            pass
 
     def _on_disconnect(
         self, client: mqtt.Client, userdata: Any, *args: Any
@@ -268,6 +311,9 @@ class BlitzwolfMqttCoordinator:
 
     async def async_disconnect(self) -> None:
         """Disconnect from MQTT."""
+        if self._refresh_task is not None:
+            self._refresh_task.cancel()
+            self._refresh_task = None
         if self._client:
             self._send_command(CMD_STOP_UPDATE)
             self._client.loop_stop()

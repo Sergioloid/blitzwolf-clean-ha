@@ -49,6 +49,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: BlitzwolfConfigEntry) ->
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Now that entities are listening, request a full data refresh
+    # and start the periodic poll for non-streaming data
+    await coordinator.async_request_full_update()
+    await coordinator.async_start_refresh_loop()
+
     return True
 
 
